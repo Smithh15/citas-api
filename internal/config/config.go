@@ -8,12 +8,13 @@ import (
 )
 
 type Config struct {
-	AppEnv      string
-	AppPort     string
-	DatabaseURL string
-	RedisAddr   string
+	AppEnv        string
+	AppPort       string
+	DatabaseURL   string
+	RedisAddr     string
 	RedisPassword string
-	RedisDB     int
+	RedisDB       int
+	JWTSecret     string
 }
 
 func Load() (*Config, error) {
@@ -26,6 +27,7 @@ func Load() (*Config, error) {
 		RedisAddr:     getEnv("REDIS_ADDR", "localhost:6379"),
 		RedisPassword: os.Getenv("REDIS_PASSWORD"),
 		RedisDB:       0,
+		JWTSecret:     os.Getenv("JWT_SECRET"),
 	}
 
 	if cfg.DatabaseURL == "" {
