@@ -1,0 +1,24 @@
+# Binaries
+/bin/
+/tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Env
+.env
+.env.local
+
+# Go
+*.test
+*.out
+vendor/
+
+# IDE
+.vscode/
+.idea/
+
+# Docker volumes data (if bind-mounted locally)
+/pgdata/
