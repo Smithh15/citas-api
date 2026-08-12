@@ -10,11 +10,11 @@ import (
 )
 
 type AuthHandler struct {
-	Queries   *sqlc.Queries
+	Queries   sqlc.Querier
 	JWTSecret string
 }
 
-func NewAuthHandler(queries *sqlc.Queries, jwtSecret string) *AuthHandler {
+func NewAuthHandler(queries sqlc.Querier, jwtSecret string) *AuthHandler {
 	return &AuthHandler{Queries: queries, JWTSecret: jwtSecret}
 }
 
@@ -25,6 +25,17 @@ type RegisterRequest struct {
 	Role     string `json:"role" binding:"required,oneof=patient doctor"`
 }
 
+// Register godoc
+// @Summary      Registra un nuevo usuario
+// @Description  Crea un paciente, doctor o admin
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body RegisterRequest true "Datos de registro"
+// @Success      201 {object} map[string]string
+// @Failure      400 {object} map[string]string
+// @Failure      409 {object} map[string]string
+// @Router       /auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -58,6 +69,17 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+// Login godoc
+// @Summary      Inicia sesión
+// @Description  Valida credenciales y devuelve un JWT
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body LoginRequest true "Credenciales"
+// @Success      200 {object} map[string]string
+// @Failure      400 {object} map[string]string
+// @Failure      401 {object} map[string]string
+// @Router       /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

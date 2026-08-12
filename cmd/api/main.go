@@ -6,7 +6,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
+	_ "github.com/Smithh15/citas-api/docs"
 	"github.com/Smithh15/citas-api/internal/config"
 	"github.com/Smithh15/citas-api/internal/db"
 	"github.com/Smithh15/citas-api/internal/db/sqlc"
@@ -14,6 +17,11 @@ import (
 	"github.com/Smithh15/citas-api/internal/middleware"
 )
 
+// @title        Citas API
+// @version      1.0
+// @description  Sistema de reservas de citas médicas con control de concurrencia
+// @host         localhost:8080
+// @BasePath     /
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -41,6 +49,7 @@ func main() {
 
 	r := gin.Default()
 	r.GET("/health", healthHandler.Check)
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	authGroup := r.Group("/auth")
 	{
