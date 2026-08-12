@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/Smithh15/citas-api/internal/db"
 	"github.com/Smithh15/citas-api/internal/db/sqlc"
 	"github.com/Smithh15/citas-api/internal/handlers"
+	"github.com/Smithh15/citas-api/internal/middleware"
 )
 
 func main() {
@@ -44,6 +46,25 @@ func main() {
 	{
 		authGroup.POST("/register", authHandler.Register)
 		authGroup.POST("/login", authHandler.Login)
+	}
+
+	protected := r.Group("/")
+	protected.Use(middleware.RequireAuth(cfg.JWTSecret))
+	{
+		protected.GET("/me", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"user_id": c.GetString("userID"),
+				"role":    c.GetString("role"),
+			})
+		})
+
+		doctorOnly := protected.Group("/")
+		doctorOnly.Use(middleware.RequireRole("doctor"))
+		{
+			doctorOnly.GET("/doctor/ping", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"message": "solo doctores ven esto"})
+			})
+		}
 	}
 
 	addr := ":" + cfg.AppPort
