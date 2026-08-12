@@ -3,14 +3,13 @@ package main
 import (
 	"context"
 	"log"
-	"net/http"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
 
 	"github.com/Smithh15/citas-api/internal/config"
 	"github.com/Smithh15/citas-api/internal/db"
+	"github.com/Smithh15/citas-api/internal/db/sqlc"
 	"github.com/Smithh15/citas-api/internal/handlers"
-	"github.com/Smithh15/citas-api/internal/middleware"
 )
 
 func main() {
@@ -33,15 +32,23 @@ func main() {
 	}
 	defer redisClient.Close()
 
-	healthHandler := handlers.NewHealthHandler(pgPool, redisClient)
+	queries := sqlc.New(pgPool)
 
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Get("/health", healthHandler.Check)
+	healthHandler := handlers.NewHealthHandler(pgPool, redisClient)
+	authHandler := handlers.NewAuthHandler(queries, cfg.JWTSecret)
+
+	r := gin.Default()
+	r.GET("/health", healthHandler.Check)
+
+	authGroup := r.Group("/auth")
+	{
+		authGroup.POST("/register", authHandler.Register)
+		authGroup.POST("/login", authHandler.Login)
+	}
 
 	addr := ":" + cfg.AppPort
 	log.Printf("citas-api listening on %s (env=%s)", addr, cfg.AppEnv)
-	if err := http.ListenAndServe(addr, r); err != nil {
+	if err := r.Run(addr); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }
