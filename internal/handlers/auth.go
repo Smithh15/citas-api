@@ -10,11 +10,11 @@ import (
 )
 
 type AuthHandler struct {
-	Queries   *sqlc.Queries
+	Queries   sqlc.Querier
 	JWTSecret string
 }
 
-func NewAuthHandler(queries *sqlc.Queries, jwtSecret string) *AuthHandler {
+func NewAuthHandler(queries sqlc.Querier, jwtSecret string) *AuthHandler {
 	return &AuthHandler{Queries: queries, JWTSecret: jwtSecret}
 }
 
