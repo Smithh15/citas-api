@@ -5,10 +5,11 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
 
 	"github.com/Smithh15/citas-api/internal/config"
 	"github.com/Smithh15/citas-api/internal/db"
+	"github.com/Smithh15/citas-api/internal/db/sqlc"
 	"github.com/Smithh15/citas-api/internal/handlers"
 	"github.com/Smithh15/citas-api/internal/middleware"
 )
@@ -33,15 +34,42 @@ func main() {
 	}
 	defer redisClient.Close()
 
-	healthHandler := handlers.NewHealthHandler(pgPool, redisClient)
+	queries := sqlc.New(pgPool)
 
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Get("/health", healthHandler.Check)
+	healthHandler := handlers.NewHealthHandler(pgPool, redisClient)
+	authHandler := handlers.NewAuthHandler(queries, cfg.JWTSecret)
+
+	r := gin.Default()
+	r.GET("/health", healthHandler.Check)
+
+	authGroup := r.Group("/auth")
+	{
+		authGroup.POST("/register", authHandler.Register)
+		authGroup.POST("/login", authHandler.Login)
+	}
+
+	protected := r.Group("/")
+	protected.Use(middleware.RequireAuth(cfg.JWTSecret))
+	{
+		protected.GET("/me", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"user_id": c.GetString("userID"),
+				"role":    c.GetString("role"),
+			})
+		})
+
+		doctorOnly := protected.Group("/")
+		doctorOnly.Use(middleware.RequireRole("doctor"))
+		{
+			doctorOnly.GET("/doctor/ping", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"message": "solo doctores ven esto"})
+			})
+		}
+	}
 
 	addr := ":" + cfg.AppPort
 	log.Printf("citas-api listening on %s (env=%s)", addr, cfg.AppEnv)
-	if err := http.ListenAndServe(addr, r); err != nil {
+	if err := r.Run(addr); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }

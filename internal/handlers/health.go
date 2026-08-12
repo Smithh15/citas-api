@@ -2,10 +2,10 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 )
@@ -19,11 +19,11 @@ func NewHealthHandler(db *pgxpool.Pool, rdb *redis.Client) *HealthHandler {
 	return &HealthHandler{DB: db, Redis: rdb}
 }
 
-func (h *HealthHandler) Check(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+func (h *HealthHandler) Check(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
 	defer cancel()
 
-	status := map[string]string{"status": "ok"}
+	status := gin.H{"status": "ok"}
 	code := http.StatusOK
 
 	if err := h.DB.Ping(ctx); err != nil {
@@ -42,7 +42,5 @@ func (h *HealthHandler) Check(w http.ResponseWriter, r *http.Request) {
 		status["redis"] = "ok"
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(status)
+	c.JSON(code, status)
 }
