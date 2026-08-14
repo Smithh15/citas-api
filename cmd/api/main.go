@@ -46,6 +46,7 @@ func main() {
 
 	healthHandler := handlers.NewHealthHandler(pgPool, redisClient)
 	authHandler := handlers.NewAuthHandler(queries, cfg.JWTSecret)
+	availabilityHandler := &handlers.AvailabilityHandler{Queries: queries}
 
 	r := gin.Default()
 	r.GET("/health", healthHandler.Check)
@@ -73,6 +74,7 @@ func main() {
 			doctorOnly.GET("/doctor/ping", func(c *gin.Context) {
 				c.JSON(http.StatusOK, gin.H{"message": "solo doctores ven esto"})
 			})
+			doctorOnly.POST("/doctor/availability", availabilityHandler.Create)
 		}
 	}
 
