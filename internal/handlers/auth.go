@@ -19,10 +19,11 @@ func NewAuthHandler(queries sqlc.Querier, jwtSecret string) *AuthHandler {
 }
 
 type RegisterRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8"`
-	FullName string `json:"full_name" binding:"required"`
-	Role     string `json:"role" binding:"required,oneof=patient doctor"`
+	Email     string `json:"email" binding:"required,email"`
+	Password  string `json:"password" binding:"required,min=8"`
+	FullName  string `json:"full_name" binding:"required"`
+	Role      string `json:"role" binding:"required,oneof=patient doctor"`
+	Specialty string `json:"specialty"` // solo requerido si role=doctor, se valida a mano abajo
 }
 
 // Register godoc
@@ -43,6 +44,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	if req.Role == "doctor" && req.Specialty == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "specialty is required for doctors"})
+		return
+	}
+
 	hash, err := auth.HashPassword(req.Password)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not process password"})
@@ -58,6 +64,16 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "email already registered"})
 		return
+	}
+
+	if req.Role == "doctor" {
+		if _, err := h.Queries.CreateDoctorProfile(c.Request.Context(), sqlc.CreateDoctorProfileParams{
+			UserID:    user.ID,
+			Specialty: req.Specialty,
+		}); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "user created but doctor profile failed"})
+			return
+		}
 	}
 
 	token, _ := auth.GenerateToken(user.ID.String(), string(user.Role), h.JWTSecret)
