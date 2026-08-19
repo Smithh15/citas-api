@@ -24,6 +24,9 @@ definitions:
         - patient
         - doctor
         type: string
+      specialty:
+        description: solo requerido si role=doctor, se valida a mano abajo
+        type: string
     required:
     - email
     - full_name
@@ -37,6 +40,41 @@ info:
   title: Citas API
   version: "1.0"
 paths:
+  /appointments/available:
+    get:
+      description: Calcula los horarios libres de un doctor en una fecha dada, cruzando
+        su disponibilidad semanal contra las citas ya reservadas
+      parameters:
+      - description: ID del doctor (doctor_profiles.id)
+        in: query
+        name: doctor_id
+        required: true
+        type: string
+      - description: Fecha en formato YYYY-MM-DD
+        in: query
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                type: string
+              type: array
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Consulta cupos disponibles de un doctor
+      tags:
+      - appointments
   /auth/login:
     post:
       consumes:

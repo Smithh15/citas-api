@@ -14,6 +14,7 @@ type Querier interface {
 	CreateAvailability(ctx context.Context, arg CreateAvailabilityParams) (Availability, error)
 	CreateDoctorProfile(ctx context.Context, arg CreateDoctorProfileParams) (DoctorProfile, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	GetAvailableSlots(ctx context.Context, arg GetAvailableSlotsParams) ([]pgtype.Timestamptz, error)
 	GetDoctorProfileByUserID(ctx context.Context, userID pgtype.UUID) (DoctorProfile, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 }

@@ -15,6 +15,57 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/appointments/available": {
+            "get": {
+                "description": "Calcula los horarios libres de un doctor en una fecha dada, cruzando su disponibilidad semanal contra las citas ya reservadas",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "appointments"
+                ],
+                "summary": "Consulta cupos disponibles de un doctor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID del doctor (doctor_profiles.id)",
+                        "name": "doctor_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Fecha en formato YYYY-MM-DD",
+                        "name": "date",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/auth/login": {
             "post": {
                 "description": "Valida credenciales y devuelve un JWT",
@@ -167,6 +218,10 @@ const docTemplate = `{
                         "patient",
                         "doctor"
                     ]
+                },
+                "specialty": {
+                    "description": "solo requerido si role=doctor, se valida a mano abajo",
+                    "type": "string"
                 }
             }
         }

@@ -47,6 +47,7 @@ func main() {
 	healthHandler := handlers.NewHealthHandler(pgPool, redisClient)
 	authHandler := handlers.NewAuthHandler(queries, cfg.JWTSecret)
 	availabilityHandler := &handlers.AvailabilityHandler{Queries: queries}
+	appointmentHandler := &handlers.AppointmentHandler{Queries: queries}
 
 	r := gin.Default()
 	r.GET("/health", healthHandler.Check)
@@ -67,6 +68,7 @@ func main() {
 				"role":    c.GetString("role"),
 			})
 		})
+		protected.GET("/appointments/available", appointmentHandler.GetAvailableSlots)
 
 		doctorOnly := protected.Group("/")
 		doctorOnly.Use(middleware.RequireRole("doctor"))
