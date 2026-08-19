@@ -11,6 +11,41 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createAppointment = `-- name: CreateAppointment :one
+INSERT INTO appointments (patient_id, doctor_id, slot_start, slot_end, status)
+VALUES ($1, $2, $3, $4, 'pending')
+ON CONFLICT (doctor_id, slot_start) WHERE status IN ('pending', 'confirmed')
+DO NOTHING
+RETURNING id, patient_id, doctor_id, slot_start, slot_end, status, created_at
+`
+
+type CreateAppointmentParams struct {
+	PatientID pgtype.UUID        `json:"patient_id"`
+	DoctorID  pgtype.UUID        `json:"doctor_id"`
+	SlotStart pgtype.Timestamptz `json:"slot_start"`
+	SlotEnd   pgtype.Timestamptz `json:"slot_end"`
+}
+
+func (q *Queries) CreateAppointment(ctx context.Context, arg CreateAppointmentParams) (Appointment, error) {
+	row := q.db.QueryRow(ctx, createAppointment,
+		arg.PatientID,
+		arg.DoctorID,
+		arg.SlotStart,
+		arg.SlotEnd,
+	)
+	var i Appointment
+	err := row.Scan(
+		&i.ID,
+		&i.PatientID,
+		&i.DoctorID,
+		&i.SlotStart,
+		&i.SlotEnd,
+		&i.Status,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getAvailableSlots = `-- name: GetAvailableSlots :many
 WITH slots AS (
     -- Las columnas start_time/end_time no tienen timezone: representan hora local

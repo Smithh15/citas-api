@@ -11,6 +11,7 @@ import (
 )
 
 type Querier interface {
+	CreateAppointment(ctx context.Context, arg CreateAppointmentParams) (Appointment, error)
 	CreateAvailability(ctx context.Context, arg CreateAvailabilityParams) (Availability, error)
 	CreateDoctorProfile(ctx context.Context, arg CreateDoctorProfileParams) (DoctorProfile, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)

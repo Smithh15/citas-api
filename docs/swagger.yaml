@@ -1,5 +1,16 @@
 basePath: /
 definitions:
+  handlers.CreateAppointmentRequest:
+    properties:
+      doctor_id:
+        type: string
+      slot_start:
+        description: 'RFC3339, ej: "2026-08-17T08:00:00-05:00"'
+        type: string
+    required:
+    - doctor_id
+    - slot_start
+    type: object
   handlers.LoginRequest:
     properties:
       email:
@@ -40,6 +51,42 @@ info:
   title: Citas API
   version: "1.0"
 paths:
+  /appointments:
+    post:
+      consumes:
+      - application/json
+      description: Crea una cita para el usuario autenticado en el cupo indicado;
+        si el cupo ya fue tomado, devuelve 409
+      parameters:
+      - description: Datos de la reserva
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateAppointmentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Reserva una cita
+      tags:
+      - appointments
   /appointments/available:
     get:
       description: Calcula los horarios libres de un doctor en una fecha dada, cruzando

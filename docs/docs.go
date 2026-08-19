@@ -15,6 +15,59 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/appointments": {
+            "post": {
+                "description": "Crea una cita para el usuario autenticado en el cupo indicado; si el cupo ya fue tomado, devuelve 409",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "appointments"
+                ],
+                "summary": "Reserva una cita",
+                "parameters": [
+                    {
+                        "description": "Datos de la reserva",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CreateAppointmentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/appointments/available": {
             "get": {
                 "description": "Calcula los horarios libres de un doctor en una fecha dada, cruzando su disponibilidad semanal contra las citas ya reservadas",
@@ -178,6 +231,22 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "handlers.CreateAppointmentRequest": {
+            "type": "object",
+            "required": [
+                "doctor_id",
+                "slot_start"
+            ],
+            "properties": {
+                "doctor_id": {
+                    "type": "string"
+                },
+                "slot_start": {
+                    "description": "RFC3339, ej: \"2026-08-17T08:00:00-05:00\"",
+                    "type": "string"
+                }
+            }
+        },
         "handlers.LoginRequest": {
             "type": "object",
             "required": [

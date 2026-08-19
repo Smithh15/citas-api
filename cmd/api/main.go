@@ -69,6 +69,7 @@ func main() {
 			})
 		})
 		protected.GET("/appointments/available", appointmentHandler.GetAvailableSlots)
+		protected.POST("/appointments", appointmentHandler.Create)
 
 		doctorOnly := protected.Group("/")
 		doctorOnly.Use(middleware.RequireRole("doctor"))

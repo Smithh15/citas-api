@@ -22,3 +22,10 @@ WHERE NOT EXISTS (
       AND ap.status IN ('pending', 'confirmed')
 )
 ORDER BY s.slot_start;
+
+-- name: CreateAppointment :one
+INSERT INTO appointments (patient_id, doctor_id, slot_start, slot_end, status)
+VALUES ($1, $2, $3, $4, 'pending')
+ON CONFLICT (doctor_id, slot_start) WHERE status IN ('pending', 'confirmed')
+DO NOTHING
+RETURNING *;
