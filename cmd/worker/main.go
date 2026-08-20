@@ -31,7 +31,7 @@ func main() {
 	)
 
 	mux := asynq.NewServeMux()
-	handler := tasks.NewHandler(queries)
+	handler := tasks.NewHandler(queries, cfg.PendingHoldMinutes)
 	mux.HandleFunc(tasks.TypeReleaseExpiredAppointments, handler.HandleReleaseExpired)
 	mux.HandleFunc(tasks.TypeSendAppointmentReminder, handler.HandleSendReminder)
 

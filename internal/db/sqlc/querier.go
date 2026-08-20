@@ -23,6 +23,7 @@ type Querier interface {
 	GetDoctorSpecialties(ctx context.Context, doctorID pgtype.UUID) ([]Specialty, error)
 	GetOrCreateSpecialty(ctx context.Context, name string) (Specialty, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
+	ReleaseExpiredPendingAppointments(ctx context.Context, holdMinutes int32) ([]ReleaseExpiredPendingAppointmentsRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

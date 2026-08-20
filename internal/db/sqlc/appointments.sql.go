@@ -137,3 +137,37 @@ func (q *Queries) GetAvailableSlots(ctx context.Context, arg GetAvailableSlotsPa
 	}
 	return items, nil
 }
+
+const releaseExpiredPendingAppointments = `-- name: ReleaseExpiredPendingAppointments :many
+UPDATE appointments
+SET status = 'cancelled'
+WHERE status = 'pending'
+  AND created_at < now() - ($1::int * interval '1 minute')
+RETURNING id, doctor_id, slot_start
+`
+
+type ReleaseExpiredPendingAppointmentsRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	DoctorID  pgtype.UUID        `json:"doctor_id"`
+	SlotStart pgtype.Timestamptz `json:"slot_start"`
+}
+
+func (q *Queries) ReleaseExpiredPendingAppointments(ctx context.Context, holdMinutes int32) ([]ReleaseExpiredPendingAppointmentsRow, error) {
+	rows, err := q.db.Query(ctx, releaseExpiredPendingAppointments, holdMinutes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReleaseExpiredPendingAppointmentsRow
+	for rows.Next() {
+		var i ReleaseExpiredPendingAppointmentsRow
+		if err := rows.Scan(&i.ID, &i.DoctorID, &i.SlotStart); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

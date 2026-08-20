@@ -38,3 +38,10 @@ UPDATE appointments
 SET status = 'cancelled'
 WHERE id = $1 AND status IN ('pending', 'confirmed')
 RETURNING *;
+
+-- name: ReleaseExpiredPendingAppointments :many
+UPDATE appointments
+SET status = 'cancelled'
+WHERE status = 'pending'
+  AND created_at < now() - (sqlc.arg(hold_minutes)::int * interval '1 minute')
+RETURNING id, doctor_id, slot_start;
