@@ -119,9 +119,18 @@ type Availability struct {
 type DoctorProfile struct {
 	ID                 pgtype.UUID        `json:"id"`
 	UserID             pgtype.UUID        `json:"user_id"`
-	Specialty          string             `json:"specialty"`
 	DefaultSlotMinutes int32              `json:"default_slot_minutes"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+}
+
+type DoctorSpecialty struct {
+	DoctorID    pgtype.UUID `json:"doctor_id"`
+	SpecialtyID pgtype.UUID `json:"specialty_id"`
+}
+
+type Specialty struct {
+	ID   pgtype.UUID `json:"id"`
+	Name string      `json:"name"`
 }
 
 type User struct {

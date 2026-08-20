@@ -1,6 +1,6 @@
 -- name: CreateDoctorProfile :one
-INSERT INTO doctor_profiles (user_id, specialty)
-VALUES ($1, $2)
+INSERT INTO doctor_profiles (user_id)
+VALUES ($1)
 RETURNING *;
 
 -- name: GetDoctorProfileByUserID :one

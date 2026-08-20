@@ -29,3 +29,29 @@ VALUES ($1, $2, $3, $4, 'pending')
 ON CONFLICT (doctor_id, slot_start) WHERE status IN ('pending', 'confirmed')
 DO NOTHING
 RETURNING *;
+
+-- name: GetAppointmentByID :one
+SELECT * FROM appointments WHERE id = $1;
+
+-- name: CancelAppointment :one
+UPDATE appointments
+SET status = 'cancelled'
+WHERE id = $1 AND status IN ('pending', 'confirmed')
+RETURNING *;
+
+-- name: ReleaseExpiredPendingAppointments :many
+UPDATE appointments
+SET status = 'cancelled'
+WHERE status = 'pending'
+  AND created_at < now() - (sqlc.arg(hold_minutes)::int * interval '1 minute')
+RETURNING id, doctor_id, slot_start;
+
+-- name: GetAppointmentForReminder :one
+SELECT ap.id, ap.slot_start, ap.status,
+       u.email AS patient_email, u.full_name AS patient_name,
+       du.full_name AS doctor_name
+FROM appointments ap
+JOIN users u ON u.id = ap.patient_id
+JOIN doctor_profiles dp ON dp.id = ap.doctor_id
+JOIN users du ON du.id = dp.user_id
+WHERE ap.id = $1;

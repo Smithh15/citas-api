@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -33,9 +34,19 @@ func (m *MockQuerier) GetUserByEmail(ctx context.Context, email string) (sqlc.Us
 	return args.Get(0).(sqlc.User), args.Error(1)
 }
 
-func (m *MockQuerier) CreateDoctorProfile(ctx context.Context, arg sqlc.CreateDoctorProfileParams) (sqlc.DoctorProfile, error) {
-	args := m.Called(ctx, arg)
+func (m *MockQuerier) CreateDoctorProfile(ctx context.Context, userID pgtype.UUID) (sqlc.DoctorProfile, error) {
+	args := m.Called(ctx, userID)
 	return args.Get(0).(sqlc.DoctorProfile), args.Error(1)
+}
+
+func (m *MockQuerier) GetOrCreateSpecialty(ctx context.Context, name string) (sqlc.Specialty, error) {
+	args := m.Called(ctx, name)
+	return args.Get(0).(sqlc.Specialty), args.Error(1)
+}
+
+func (m *MockQuerier) AddDoctorSpecialty(ctx context.Context, arg sqlc.AddDoctorSpecialtyParams) error {
+	args := m.Called(ctx, arg)
+	return args.Error(0)
 }
 
 func TestRegister_Success(t *testing.T) {
@@ -45,16 +56,20 @@ func TestRegister_Success(t *testing.T) {
 	mockQuerier.On("CreateUser", mock.Anything, mock.Anything).
 		Return(sqlc.User{Email: "doc@test.com", Role: "doctor"}, nil)
 	mockQuerier.On("CreateDoctorProfile", mock.Anything, mock.Anything).
-		Return(sqlc.DoctorProfile{Specialty: "Cardiología"}, nil)
+		Return(sqlc.DoctorProfile{}, nil)
+	mockQuerier.On("GetOrCreateSpecialty", mock.Anything, "Cardiología").
+		Return(sqlc.Specialty{Name: "Cardiología"}, nil)
+	mockQuerier.On("AddDoctorSpecialty", mock.Anything, mock.Anything).
+		Return(nil)
 
 	h := &handlers.AuthHandler{Queries: mockQuerier, JWTSecret: "test-secret"}
 
 	router := gin.New()
 	router.POST("/auth/register", h.Register)
 
-	body, _ := json.Marshal(map[string]string{
+	body, _ := json.Marshal(map[string]interface{}{
 		"email": "doc@test.com", "password": "password123",
-		"full_name": "Dra. Ana", "role": "doctor", "specialty": "Cardiología",
+		"full_name": "Dra. Ana", "role": "doctor", "specialties": []string{"Cardiología"},
 	})
 	req := httptest.NewRequest(http.MethodPost, "/auth/register", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")

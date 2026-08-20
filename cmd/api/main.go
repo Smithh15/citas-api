@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hibiken/asynq"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
@@ -42,12 +43,19 @@ func main() {
 	}
 	defer redisClient.Close()
 
+	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: cfg.RedisAddr, Password: cfg.RedisPassword, DB: cfg.RedisDB})
+	defer asynqClient.Close()
+
 	queries := sqlc.New(pgPool)
 
 	healthHandler := handlers.NewHealthHandler(pgPool, redisClient)
 	authHandler := handlers.NewAuthHandler(queries, cfg.JWTSecret)
 	availabilityHandler := &handlers.AvailabilityHandler{Queries: queries}
-	appointmentHandler := &handlers.AppointmentHandler{Queries: queries}
+	appointmentHandler := &handlers.AppointmentHandler{
+		Queries:              queries,
+		AsynqClient:          asynqClient,
+		MinCancellationHours: cfg.MinCancellationHours,
+	}
 
 	r := gin.Default()
 	r.GET("/health", healthHandler.Check)
@@ -70,6 +78,7 @@ func main() {
 		})
 		protected.GET("/appointments/available", appointmentHandler.GetAvailableSlots)
 		protected.POST("/appointments", appointmentHandler.Create)
+		protected.PATCH("/appointments/:id/cancel", appointmentHandler.Cancel)
 
 		doctorOnly := protected.Group("/")
 		doctorOnly.Use(middleware.RequireRole("doctor"))

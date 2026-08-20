@@ -11,6 +11,28 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const cancelAppointment = `-- name: CancelAppointment :one
+UPDATE appointments
+SET status = 'cancelled'
+WHERE id = $1 AND status IN ('pending', 'confirmed')
+RETURNING id, patient_id, doctor_id, slot_start, slot_end, status, created_at
+`
+
+func (q *Queries) CancelAppointment(ctx context.Context, id pgtype.UUID) (Appointment, error) {
+	row := q.db.QueryRow(ctx, cancelAppointment, id)
+	var i Appointment
+	err := row.Scan(
+		&i.ID,
+		&i.PatientID,
+		&i.DoctorID,
+		&i.SlotStart,
+		&i.SlotEnd,
+		&i.Status,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createAppointment = `-- name: CreateAppointment :one
 INSERT INTO appointments (patient_id, doctor_id, slot_start, slot_end, status)
 VALUES ($1, $2, $3, $4, 'pending')
@@ -42,6 +64,59 @@ func (q *Queries) CreateAppointment(ctx context.Context, arg CreateAppointmentPa
 		&i.SlotEnd,
 		&i.Status,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getAppointmentByID = `-- name: GetAppointmentByID :one
+SELECT id, patient_id, doctor_id, slot_start, slot_end, status, created_at FROM appointments WHERE id = $1
+`
+
+func (q *Queries) GetAppointmentByID(ctx context.Context, id pgtype.UUID) (Appointment, error) {
+	row := q.db.QueryRow(ctx, getAppointmentByID, id)
+	var i Appointment
+	err := row.Scan(
+		&i.ID,
+		&i.PatientID,
+		&i.DoctorID,
+		&i.SlotStart,
+		&i.SlotEnd,
+		&i.Status,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getAppointmentForReminder = `-- name: GetAppointmentForReminder :one
+SELECT ap.id, ap.slot_start, ap.status,
+       u.email AS patient_email, u.full_name AS patient_name,
+       du.full_name AS doctor_name
+FROM appointments ap
+JOIN users u ON u.id = ap.patient_id
+JOIN doctor_profiles dp ON dp.id = ap.doctor_id
+JOIN users du ON du.id = dp.user_id
+WHERE ap.id = $1
+`
+
+type GetAppointmentForReminderRow struct {
+	ID           pgtype.UUID        `json:"id"`
+	SlotStart    pgtype.Timestamptz `json:"slot_start"`
+	Status       AppointmentStatus  `json:"status"`
+	PatientEmail string             `json:"patient_email"`
+	PatientName  string             `json:"patient_name"`
+	DoctorName   string             `json:"doctor_name"`
+}
+
+func (q *Queries) GetAppointmentForReminder(ctx context.Context, id pgtype.UUID) (GetAppointmentForReminderRow, error) {
+	row := q.db.QueryRow(ctx, getAppointmentForReminder, id)
+	var i GetAppointmentForReminderRow
+	err := row.Scan(
+		&i.ID,
+		&i.SlotStart,
+		&i.Status,
+		&i.PatientEmail,
+		&i.PatientName,
+		&i.DoctorName,
 	)
 	return i, err
 }
@@ -90,6 +165,40 @@ func (q *Queries) GetAvailableSlots(ctx context.Context, arg GetAvailableSlotsPa
 			return nil, err
 		}
 		items = append(items, slot_start)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const releaseExpiredPendingAppointments = `-- name: ReleaseExpiredPendingAppointments :many
+UPDATE appointments
+SET status = 'cancelled'
+WHERE status = 'pending'
+  AND created_at < now() - ($1::int * interval '1 minute')
+RETURNING id, doctor_id, slot_start
+`
+
+type ReleaseExpiredPendingAppointmentsRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	DoctorID  pgtype.UUID        `json:"doctor_id"`
+	SlotStart pgtype.Timestamptz `json:"slot_start"`
+}
+
+func (q *Queries) ReleaseExpiredPendingAppointments(ctx context.Context, holdMinutes int32) ([]ReleaseExpiredPendingAppointmentsRow, error) {
+	rows, err := q.db.Query(ctx, releaseExpiredPendingAppointments, holdMinutes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReleaseExpiredPendingAppointmentsRow
+	for rows.Next() {
+		var i ReleaseExpiredPendingAppointmentsRow
+		if err := rows.Scan(&i.ID, &i.DoctorID, &i.SlotStart); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

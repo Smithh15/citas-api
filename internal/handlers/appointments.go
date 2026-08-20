@@ -1,19 +1,26 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/Smithh15/citas-api/internal/db/sqlc"
+	"github.com/Smithh15/citas-api/internal/tasks"
 )
 
 type AppointmentHandler struct {
-	Queries sqlc.Querier
+	Queries              sqlc.Querier
+	AsynqClient          *asynq.Client
+	MinCancellationHours int
 }
 
 // GetAvailableSlots godoc
@@ -120,5 +127,86 @@ func (h *AppointmentHandler) Create(c *gin.Context) {
 		return
 	}
 
+	if h.AsynqClient != nil {
+		h.scheduleReminder(appt)
+	}
+
 	c.JSON(http.StatusCreated, appt)
+}
+
+// scheduleReminder encola el recordatorio 24h antes de la cita. Si falla, no
+// propagamos el error al paciente: la cita ya se creó correctamente, y fallar
+// el request entero por un recordatorio sería peor experiencia que perderlo.
+func (h *AppointmentHandler) scheduleReminder(appt sqlc.Appointment) {
+	reminderAt := appt.SlotStart.Time.Add(-24 * time.Hour)
+	if !reminderAt.After(time.Now()) {
+		return
+	}
+
+	payload, err := json.Marshal(tasks.SendReminderPayload{AppointmentID: appt.ID.String()})
+	if err != nil {
+		log.Printf("could not marshal reminder payload for %s: %v", appt.ID.String(), err)
+		return
+	}
+
+	task := asynq.NewTask(tasks.TypeSendAppointmentReminder, payload)
+	if _, err := h.AsynqClient.Enqueue(task, asynq.ProcessAt(reminderAt)); err != nil {
+		log.Printf("could not schedule reminder for %s: %v", appt.ID.String(), err)
+	}
+}
+
+// Cancel godoc
+// @Summary      Cancela una cita
+// @Description  Cancela una cita propia (o cualquiera, si el usuario es admin), respetando la ventana mínima de cancelación
+// @Tags         appointments
+// @Produce      json
+// @Param        id path string true "ID de la cita"
+// @Success      200 {object} map[string]interface{}
+// @Failure      400 {object} map[string]string
+// @Failure      403 {object} map[string]string
+// @Failure      404 {object} map[string]string
+// @Failure      409 {object} map[string]string
+// @Router       /appointments/{id}/cancel [patch]
+func (h *AppointmentHandler) Cancel(c *gin.Context) {
+	var apptID pgtype.UUID
+	if err := apptID.Scan(c.Param("id")); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid appointment id"})
+		return
+	}
+
+	appt, err := h.Queries.GetAppointmentByID(c.Request.Context(), apptID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "appointment not found"})
+		return
+	}
+
+	userID := c.GetString("userID")
+	role := c.GetString("role")
+	if role != "admin" && appt.PatientID.String() != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "not your appointment"})
+		return
+	}
+
+	minWindow := time.Duration(h.MinCancellationHours) * time.Hour
+	if time.Now().Add(minWindow).After(appt.SlotStart.Time) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("cannot cancel within %d hours of the appointment", h.MinCancellationHours),
+		})
+		return
+	}
+
+	cancelled, err := h.Queries.CancelAppointment(c.Request.Context(), apptID)
+	if err != nil {
+		// Igual patrón que en Create: el WHERE del UPDATE hace que pgx no
+		// devuelva fila si la cita ya no calificaba (p.ej. otra cancelación
+		// concurrente ganó primero), sin necesitar un lock en Go.
+		if errors.Is(err, pgx.ErrNoRows) {
+			c.JSON(http.StatusConflict, gin.H{"error": "appointment already cancelled or completed"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not cancel appointment"})
+		return
+	}
+
+	c.JSON(http.StatusOK, cancelled)
 }

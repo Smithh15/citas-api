@@ -11,13 +11,20 @@ import (
 )
 
 type Querier interface {
+	AddDoctorSpecialty(ctx context.Context, arg AddDoctorSpecialtyParams) error
+	CancelAppointment(ctx context.Context, id pgtype.UUID) (Appointment, error)
 	CreateAppointment(ctx context.Context, arg CreateAppointmentParams) (Appointment, error)
 	CreateAvailability(ctx context.Context, arg CreateAvailabilityParams) (Availability, error)
-	CreateDoctorProfile(ctx context.Context, arg CreateDoctorProfileParams) (DoctorProfile, error)
+	CreateDoctorProfile(ctx context.Context, userID pgtype.UUID) (DoctorProfile, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	GetAppointmentByID(ctx context.Context, id pgtype.UUID) (Appointment, error)
+	GetAppointmentForReminder(ctx context.Context, id pgtype.UUID) (GetAppointmentForReminderRow, error)
 	GetAvailableSlots(ctx context.Context, arg GetAvailableSlotsParams) ([]pgtype.Timestamptz, error)
 	GetDoctorProfileByUserID(ctx context.Context, userID pgtype.UUID) (DoctorProfile, error)
+	GetDoctorSpecialties(ctx context.Context, doctorID pgtype.UUID) ([]Specialty, error)
+	GetOrCreateSpecialty(ctx context.Context, name string) (Specialty, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
+	ReleaseExpiredPendingAppointments(ctx context.Context, holdMinutes int32) ([]ReleaseExpiredPendingAppointmentsRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

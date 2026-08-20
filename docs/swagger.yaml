@@ -35,9 +35,11 @@ definitions:
         - patient
         - doctor
         type: string
-      specialty:
+      specialties:
         description: solo requerido si role=doctor, se valida a mano abajo
-        type: string
+        items:
+          type: string
+        type: array
     required:
     - email
     - full_name
@@ -85,6 +87,51 @@ paths:
               type: string
             type: object
       summary: Reserva una cita
+      tags:
+      - appointments
+  /appointments/{id}/cancel:
+    patch:
+      description: Cancela una cita propia (o cualquiera, si el usuario es admin),
+        respetando la ventana mínima de cancelación
+      parameters:
+      - description: ID de la cita
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Cancela una cita
       tags:
       - appointments
   /appointments/available:

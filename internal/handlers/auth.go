@@ -19,11 +19,11 @@ func NewAuthHandler(queries sqlc.Querier, jwtSecret string) *AuthHandler {
 }
 
 type RegisterRequest struct {
-	Email     string `json:"email" binding:"required,email"`
-	Password  string `json:"password" binding:"required,min=8"`
-	FullName  string `json:"full_name" binding:"required"`
-	Role      string `json:"role" binding:"required,oneof=patient doctor"`
-	Specialty string `json:"specialty"` // solo requerido si role=doctor, se valida a mano abajo
+	Email       string   `json:"email" binding:"required,email"`
+	Password    string   `json:"password" binding:"required,min=8"`
+	FullName    string   `json:"full_name" binding:"required"`
+	Role        string   `json:"role" binding:"required,oneof=patient doctor"`
+	Specialties []string `json:"specialties"` // solo requerido si role=doctor, se valida a mano abajo
 }
 
 // Register godoc
@@ -44,8 +44,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	if req.Role == "doctor" && req.Specialty == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "specialty is required for doctors"})
+	if req.Role == "doctor" && len(req.Specialties) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "specialties is required for doctors"})
 		return
 	}
 
@@ -67,12 +67,25 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	if req.Role == "doctor" {
-		if _, err := h.Queries.CreateDoctorProfile(c.Request.Context(), sqlc.CreateDoctorProfileParams{
-			UserID:    user.ID,
-			Specialty: req.Specialty,
-		}); err != nil {
+		profile, err := h.Queries.CreateDoctorProfile(c.Request.Context(), user.ID)
+		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "user created but doctor profile failed"})
 			return
+		}
+
+		for _, name := range req.Specialties {
+			spec, err := h.Queries.GetOrCreateSpecialty(c.Request.Context(), name)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "could not process specialty"})
+				return
+			}
+			if err := h.Queries.AddDoctorSpecialty(c.Request.Context(), sqlc.AddDoctorSpecialtyParams{
+				DoctorID:    profile.ID,
+				SpecialtyID: spec.ID,
+			}); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "could not link specialty"})
+				return
+			}
 		}
 	}
 
