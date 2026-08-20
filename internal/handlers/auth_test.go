@@ -33,12 +33,19 @@ func (m *MockQuerier) GetUserByEmail(ctx context.Context, email string) (sqlc.Us
 	return args.Get(0).(sqlc.User), args.Error(1)
 }
 
+func (m *MockQuerier) CreateDoctorProfile(ctx context.Context, arg sqlc.CreateDoctorProfileParams) (sqlc.DoctorProfile, error) {
+	args := m.Called(ctx, arg)
+	return args.Get(0).(sqlc.DoctorProfile), args.Error(1)
+}
+
 func TestRegister_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockQuerier := new(MockQuerier)
 	mockQuerier.On("CreateUser", mock.Anything, mock.Anything).
 		Return(sqlc.User{Email: "doc@test.com", Role: "doctor"}, nil)
+	mockQuerier.On("CreateDoctorProfile", mock.Anything, mock.Anything).
+		Return(sqlc.DoctorProfile{Specialty: "Cardiología"}, nil)
 
 	h := &handlers.AuthHandler{Queries: mockQuerier, JWTSecret: "test-secret"}
 
@@ -47,7 +54,7 @@ func TestRegister_Success(t *testing.T) {
 
 	body, _ := json.Marshal(map[string]string{
 		"email": "doc@test.com", "password": "password123",
-		"full_name": "Dra. Ana", "role": "doctor",
+		"full_name": "Dra. Ana", "role": "doctor", "specialty": "Cardiología",
 	})
 	req := httptest.NewRequest(http.MethodPost, "/auth/register", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")

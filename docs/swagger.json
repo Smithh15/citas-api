@@ -9,6 +9,110 @@
     "host": "localhost:8080",
     "basePath": "/",
     "paths": {
+        "/appointments": {
+            "post": {
+                "description": "Crea una cita para el usuario autenticado en el cupo indicado; si el cupo ya fue tomado, devuelve 409",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "appointments"
+                ],
+                "summary": "Reserva una cita",
+                "parameters": [
+                    {
+                        "description": "Datos de la reserva",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CreateAppointmentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/appointments/available": {
+            "get": {
+                "description": "Calcula los horarios libres de un doctor en una fecha dada, cruzando su disponibilidad semanal contra las citas ya reservadas",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "appointments"
+                ],
+                "summary": "Consulta cupos disponibles de un doctor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID del doctor (doctor_profiles.id)",
+                        "name": "doctor_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Fecha en formato YYYY-MM-DD",
+                        "name": "date",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/auth/login": {
             "post": {
                 "description": "Valida credenciales y devuelve un JWT",
@@ -121,6 +225,22 @@
         }
     },
     "definitions": {
+        "handlers.CreateAppointmentRequest": {
+            "type": "object",
+            "required": [
+                "doctor_id",
+                "slot_start"
+            ],
+            "properties": {
+                "doctor_id": {
+                    "type": "string"
+                },
+                "slot_start": {
+                    "description": "RFC3339, ej: \"2026-08-17T08:00:00-05:00\"",
+                    "type": "string"
+                }
+            }
+        },
         "handlers.LoginRequest": {
             "type": "object",
             "required": [
@@ -161,6 +281,10 @@
                         "patient",
                         "doctor"
                     ]
+                },
+                "specialty": {
+                    "description": "solo requerido si role=doctor, se valida a mano abajo",
+                    "type": "string"
                 }
             }
         }

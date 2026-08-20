@@ -11,6 +11,50 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AppointmentStatus string
+
+const (
+	AppointmentStatusPending   AppointmentStatus = "pending"
+	AppointmentStatusConfirmed AppointmentStatus = "confirmed"
+	AppointmentStatusCancelled AppointmentStatus = "cancelled"
+	AppointmentStatusCompleted AppointmentStatus = "completed"
+)
+
+func (e *AppointmentStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AppointmentStatus(s)
+	case string:
+		*e = AppointmentStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AppointmentStatus: %T", src)
+	}
+	return nil
+}
+
+type NullAppointmentStatus struct {
+	AppointmentStatus AppointmentStatus `json:"appointment_status"`
+	Valid             bool              `json:"valid"` // Valid is true if AppointmentStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAppointmentStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.AppointmentStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AppointmentStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAppointmentStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AppointmentStatus), nil
+}
+
 type UserRole string
 
 const (
@@ -52,6 +96,24 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.UserRole), nil
+}
+
+type Appointment struct {
+	ID        pgtype.UUID        `json:"id"`
+	PatientID pgtype.UUID        `json:"patient_id"`
+	DoctorID  pgtype.UUID        `json:"doctor_id"`
+	SlotStart pgtype.Timestamptz `json:"slot_start"`
+	SlotEnd   pgtype.Timestamptz `json:"slot_end"`
+	Status    AppointmentStatus  `json:"status"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type Availability struct {
+	ID        pgtype.UUID `json:"id"`
+	DoctorID  pgtype.UUID `json:"doctor_id"`
+	DayOfWeek int16       `json:"day_of_week"`
+	StartTime pgtype.Time `json:"start_time"`
+	EndTime   pgtype.Time `json:"end_time"`
 }
 
 type DoctorProfile struct {
