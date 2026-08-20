@@ -11,6 +11,28 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const cancelAppointment = `-- name: CancelAppointment :one
+UPDATE appointments
+SET status = 'cancelled'
+WHERE id = $1 AND status IN ('pending', 'confirmed')
+RETURNING id, patient_id, doctor_id, slot_start, slot_end, status, created_at
+`
+
+func (q *Queries) CancelAppointment(ctx context.Context, id pgtype.UUID) (Appointment, error) {
+	row := q.db.QueryRow(ctx, cancelAppointment, id)
+	var i Appointment
+	err := row.Scan(
+		&i.ID,
+		&i.PatientID,
+		&i.DoctorID,
+		&i.SlotStart,
+		&i.SlotEnd,
+		&i.Status,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createAppointment = `-- name: CreateAppointment :one
 INSERT INTO appointments (patient_id, doctor_id, slot_start, slot_end, status)
 VALUES ($1, $2, $3, $4, 'pending')
@@ -33,6 +55,25 @@ func (q *Queries) CreateAppointment(ctx context.Context, arg CreateAppointmentPa
 		arg.SlotStart,
 		arg.SlotEnd,
 	)
+	var i Appointment
+	err := row.Scan(
+		&i.ID,
+		&i.PatientID,
+		&i.DoctorID,
+		&i.SlotStart,
+		&i.SlotEnd,
+		&i.Status,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getAppointmentByID = `-- name: GetAppointmentByID :one
+SELECT id, patient_id, doctor_id, slot_start, slot_end, status, created_at FROM appointments WHERE id = $1
+`
+
+func (q *Queries) GetAppointmentByID(ctx context.Context, id pgtype.UUID) (Appointment, error) {
+	row := q.db.QueryRow(ctx, getAppointmentByID, id)
 	var i Appointment
 	err := row.Scan(
 		&i.ID,

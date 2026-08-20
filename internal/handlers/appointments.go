@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -13,7 +14,8 @@ import (
 )
 
 type AppointmentHandler struct {
-	Queries sqlc.Querier
+	Queries              sqlc.Querier
+	MinCancellationHours int
 }
 
 // GetAvailableSlots godoc
@@ -121,4 +123,60 @@ func (h *AppointmentHandler) Create(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, appt)
+}
+
+// Cancel godoc
+// @Summary      Cancela una cita
+// @Description  Cancela una cita propia (o cualquiera, si el usuario es admin), respetando la ventana mínima de cancelación
+// @Tags         appointments
+// @Produce      json
+// @Param        id path string true "ID de la cita"
+// @Success      200 {object} map[string]interface{}
+// @Failure      400 {object} map[string]string
+// @Failure      403 {object} map[string]string
+// @Failure      404 {object} map[string]string
+// @Failure      409 {object} map[string]string
+// @Router       /appointments/{id}/cancel [patch]
+func (h *AppointmentHandler) Cancel(c *gin.Context) {
+	var apptID pgtype.UUID
+	if err := apptID.Scan(c.Param("id")); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid appointment id"})
+		return
+	}
+
+	appt, err := h.Queries.GetAppointmentByID(c.Request.Context(), apptID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "appointment not found"})
+		return
+	}
+
+	userID := c.GetString("userID")
+	role := c.GetString("role")
+	if role != "admin" && appt.PatientID.String() != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "not your appointment"})
+		return
+	}
+
+	minWindow := time.Duration(h.MinCancellationHours) * time.Hour
+	if time.Now().Add(minWindow).After(appt.SlotStart.Time) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("cannot cancel within %d hours of the appointment", h.MinCancellationHours),
+		})
+		return
+	}
+
+	cancelled, err := h.Queries.CancelAppointment(c.Request.Context(), apptID)
+	if err != nil {
+		// Igual patrón que en Create: el WHERE del UPDATE hace que pgx no
+		// devuelva fila si la cita ya no calificaba (p.ej. otra cancelación
+		// concurrente ganó primero), sin necesitar un lock en Go.
+		if errors.Is(err, pgx.ErrNoRows) {
+			c.JSON(http.StatusConflict, gin.H{"error": "appointment already cancelled or completed"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not cancel appointment"})
+		return
+	}
+
+	c.JSON(http.StatusOK, cancelled)
 }

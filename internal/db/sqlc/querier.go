@@ -11,10 +11,12 @@ import (
 )
 
 type Querier interface {
+	CancelAppointment(ctx context.Context, id pgtype.UUID) (Appointment, error)
 	CreateAppointment(ctx context.Context, arg CreateAppointmentParams) (Appointment, error)
 	CreateAvailability(ctx context.Context, arg CreateAvailabilityParams) (Availability, error)
 	CreateDoctorProfile(ctx context.Context, arg CreateDoctorProfileParams) (DoctorProfile, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	GetAppointmentByID(ctx context.Context, id pgtype.UUID) (Appointment, error)
 	GetAvailableSlots(ctx context.Context, arg GetAvailableSlotsParams) ([]pgtype.Timestamptz, error)
 	GetDoctorProfileByUserID(ctx context.Context, userID pgtype.UUID) (DoctorProfile, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)

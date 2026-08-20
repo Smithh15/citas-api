@@ -29,3 +29,12 @@ VALUES ($1, $2, $3, $4, 'pending')
 ON CONFLICT (doctor_id, slot_start) WHERE status IN ('pending', 'confirmed')
 DO NOTHING
 RETURNING *;
+
+-- name: GetAppointmentByID :one
+SELECT * FROM appointments WHERE id = $1;
+
+-- name: CancelAppointment :one
+UPDATE appointments
+SET status = 'cancelled'
+WHERE id = $1 AND status IN ('pending', 'confirmed')
+RETURNING *;

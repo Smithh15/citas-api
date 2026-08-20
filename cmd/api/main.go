@@ -47,7 +47,7 @@ func main() {
 	healthHandler := handlers.NewHealthHandler(pgPool, redisClient)
 	authHandler := handlers.NewAuthHandler(queries, cfg.JWTSecret)
 	availabilityHandler := &handlers.AvailabilityHandler{Queries: queries}
-	appointmentHandler := &handlers.AppointmentHandler{Queries: queries}
+	appointmentHandler := &handlers.AppointmentHandler{Queries: queries, MinCancellationHours: cfg.MinCancellationHours}
 
 	r := gin.Default()
 	r.GET("/health", healthHandler.Check)
@@ -70,6 +70,7 @@ func main() {
 		})
 		protected.GET("/appointments/available", appointmentHandler.GetAvailableSlots)
 		protected.POST("/appointments", appointmentHandler.Create)
+		protected.PATCH("/appointments/:id/cancel", appointmentHandler.Cancel)
 
 		doctorOnly := protected.Group("/")
 		doctorOnly.Use(middleware.RequireRole("doctor"))
