@@ -1,5 +1,7 @@
 # citas-api
 
+[![CI](https://github.com/Smithh15/citas-api/actions/workflows/ci.yml/badge.svg)](https://github.com/Smithh15/citas-api/actions/workflows/ci.yml)
+
 Backend de un sistema de reservas de citas médicas, escrito en Go.
 
 El objetivo del proyecto no es el CRUD: es resolver correctamente el problema de
