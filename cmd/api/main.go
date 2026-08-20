@@ -58,6 +58,14 @@ func main() {
 	}
 
 	r := gin.Default()
+	// Gin confía en TODOS los proxies por defecto (0.0.0.0/0): sin esto,
+	// cualquiera podría falsificar X-Forwarded-For y rotar de "IP" en cada
+	// request para evadir el rate limit. Restringimos la confianza a los
+	// rangos privados RFC1918 — el salto real del balanceador de Render
+	// hacia este contenedor, no alcanzable directamente desde internet.
+	if err := r.SetTrustedProxies([]string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}); err != nil {
+		log.Fatalf("setting trusted proxies: %v", err)
+	}
 	r.Use(middleware.MaxBodyBytes(1 << 20)) // 1 MiB por petición
 	r.GET("/health", healthHandler.Check)
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
