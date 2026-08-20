@@ -12,23 +12,17 @@ import (
 )
 
 const createDoctorProfile = `-- name: CreateDoctorProfile :one
-INSERT INTO doctor_profiles (user_id, specialty)
-VALUES ($1, $2)
-RETURNING id, user_id, specialty, default_slot_minutes, created_at
+INSERT INTO doctor_profiles (user_id)
+VALUES ($1)
+RETURNING id, user_id, default_slot_minutes, created_at
 `
 
-type CreateDoctorProfileParams struct {
-	UserID    pgtype.UUID `json:"user_id"`
-	Specialty string      `json:"specialty"`
-}
-
-func (q *Queries) CreateDoctorProfile(ctx context.Context, arg CreateDoctorProfileParams) (DoctorProfile, error) {
-	row := q.db.QueryRow(ctx, createDoctorProfile, arg.UserID, arg.Specialty)
+func (q *Queries) CreateDoctorProfile(ctx context.Context, userID pgtype.UUID) (DoctorProfile, error) {
+	row := q.db.QueryRow(ctx, createDoctorProfile, userID)
 	var i DoctorProfile
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
-		&i.Specialty,
 		&i.DefaultSlotMinutes,
 		&i.CreatedAt,
 	)
@@ -36,7 +30,7 @@ func (q *Queries) CreateDoctorProfile(ctx context.Context, arg CreateDoctorProfi
 }
 
 const getDoctorProfileByUserID = `-- name: GetDoctorProfileByUserID :one
-SELECT id, user_id, specialty, default_slot_minutes, created_at FROM doctor_profiles
+SELECT id, user_id, default_slot_minutes, created_at FROM doctor_profiles
 WHERE user_id = $1
 `
 
@@ -46,7 +40,6 @@ func (q *Queries) GetDoctorProfileByUserID(ctx context.Context, userID pgtype.UU
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
-		&i.Specialty,
 		&i.DefaultSlotMinutes,
 		&i.CreatedAt,
 	)

@@ -112,10 +112,7 @@ func setupConcurrencyTestData(t *testing.T, ctx context.Context, pool *pgxpool.P
 	})
 	require.NoError(t, err)
 
-	doctorProfile, err := queries.CreateDoctorProfile(ctx, sqlc.CreateDoctorProfileParams{
-		UserID:    doctorUser.ID,
-		Specialty: "Concurrencia",
-	})
+	doctorProfile, err := queries.CreateDoctorProfile(ctx, doctorUser.ID)
 	require.NoError(t, err)
 
 	patientUserIDs := make([]string, 0, numPatients)

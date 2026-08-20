@@ -354,9 +354,12 @@ const docTemplate = `{
                         "doctor"
                     ]
                 },
-                "specialty": {
+                "specialties": {
                     "description": "solo requerido si role=doctor, se valida a mano abajo",
-                    "type": "string"
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         }

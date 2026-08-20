@@ -35,9 +35,11 @@ definitions:
         - patient
         - doctor
         type: string
-      specialty:
+      specialties:
         description: solo requerido si role=doctor, se valida a mano abajo
-        type: string
+        items:
+          type: string
+        type: array
     required:
     - email
     - full_name
