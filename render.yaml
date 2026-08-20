@@ -1,0 +1,43 @@
+databases:
+  - name: citas-db
+    plan: free
+    databaseName: citas
+    user: citas
+
+services:
+  - name: citas-redis
+    type: keyvalue
+    plan: free
+    ipAllowList: [] # bloquea acceso publico; citas-api se conecta por red privada
+
+  - type: web
+    name: citas-api
+    runtime: go
+    plan: free
+    buildCommand: go build -o app ./cmd/api
+    startCommand: ./app
+    healthCheckPath: /health
+    # Corre las migraciones antes de arrancar la nueva instancia, en cada deploy.
+    preDeployCommand: >-
+      go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+      -database "$DATABASE_URL" -path migrations up
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_PORT
+        value: "10000" # Render espera que el servicio escuche en el puerto de PORT (default 10000)
+      - key: DATABASE_URL
+        fromDatabase:
+          name: citas-db
+          property: connectionString
+      - key: REDIS_ADDR
+        fromService:
+          name: citas-redis
+          type: keyvalue
+          property: hostport
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MIN_CANCELLATION_HOURS
+        value: "24"
+      - key: PENDING_HOLD_MINUTES
+        value: "15"

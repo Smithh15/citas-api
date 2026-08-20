@@ -46,7 +46,6 @@ definitions:
     - password
     - role
     type: object
-host: localhost:8080
 info:
   contact: {}
   description: Sistema de reservas de citas médicas con control de concurrencia
