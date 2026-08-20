@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hibiken/asynq"
@@ -21,7 +22,6 @@ import (
 // @title        Citas API
 // @version      1.0
 // @description  Sistema de reservas de citas médicas con control de concurrencia
-// @host         localhost:8080
 // @BasePath     /
 func main() {
 	cfg, err := config.Load()
@@ -58,10 +58,12 @@ func main() {
 	}
 
 	r := gin.Default()
+	r.Use(middleware.MaxBodyBytes(1 << 20)) // 1 MiB por petición
 	r.GET("/health", healthHandler.Check)
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	authGroup := r.Group("/auth")
+	authGroup.Use(middleware.RateLimit(5.0/60, 5)) // 5 peticiones/min por IP, ráfaga de 5
 	{
 		authGroup.POST("/register", authHandler.Register)
 		authGroup.POST("/login", authHandler.Login)
@@ -91,8 +93,16 @@ func main() {
 	}
 
 	addr := ":" + cfg.AppPort
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      r,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
 	log.Printf("citas-api listening on %s (env=%s)", addr, cfg.AppEnv)
-	if err := r.Run(addr); err != nil {
+	if err := srv.ListenAndServe(); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }

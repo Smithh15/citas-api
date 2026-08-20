@@ -300,6 +300,13 @@ funcionaría.
 sin zona y se anclan a `America/Bogota` al calcular los cupos. Sin ese anclaje,
 PostgreSQL las interpreta como UTC y los horarios se desplazan cinco horas.
 
+**Registro abierto del rol `doctor`.** Cualquiera puede registrarse como doctor
+y declarar disponibilidad, sin aprobación previa de un admin. Para una demo
+pública es una decisión consciente, no un descuido: mantiene el proyecto
+navegable de punta a punta (registrarse, publicar disponibilidad, reservar)
+sin pasos manuales. Un sistema real necesitaría verificación de credenciales
+antes de dejar a alguien operar como doctor.
+
 ---
 
 ## Limitaciones conocidas
