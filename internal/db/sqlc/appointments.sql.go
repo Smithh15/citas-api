@@ -87,6 +87,40 @@ func (q *Queries) GetAppointmentByID(ctx context.Context, id pgtype.UUID) (Appoi
 	return i, err
 }
 
+const getAppointmentForReminder = `-- name: GetAppointmentForReminder :one
+SELECT ap.id, ap.slot_start, ap.status,
+       u.email AS patient_email, u.full_name AS patient_name,
+       du.full_name AS doctor_name
+FROM appointments ap
+JOIN users u ON u.id = ap.patient_id
+JOIN doctor_profiles dp ON dp.id = ap.doctor_id
+JOIN users du ON du.id = dp.user_id
+WHERE ap.id = $1
+`
+
+type GetAppointmentForReminderRow struct {
+	ID           pgtype.UUID        `json:"id"`
+	SlotStart    pgtype.Timestamptz `json:"slot_start"`
+	Status       AppointmentStatus  `json:"status"`
+	PatientEmail string             `json:"patient_email"`
+	PatientName  string             `json:"patient_name"`
+	DoctorName   string             `json:"doctor_name"`
+}
+
+func (q *Queries) GetAppointmentForReminder(ctx context.Context, id pgtype.UUID) (GetAppointmentForReminderRow, error) {
+	row := q.db.QueryRow(ctx, getAppointmentForReminder, id)
+	var i GetAppointmentForReminderRow
+	err := row.Scan(
+		&i.ID,
+		&i.SlotStart,
+		&i.Status,
+		&i.PatientEmail,
+		&i.PatientName,
+		&i.DoctorName,
+	)
+	return i, err
+}
+
 const getAvailableSlots = `-- name: GetAvailableSlots :many
 WITH slots AS (
     -- Las columnas start_time/end_time no tienen timezone: representan hora local

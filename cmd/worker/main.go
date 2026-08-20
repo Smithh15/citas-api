@@ -9,6 +9,7 @@ import (
 
 	"github.com/Smithh15/citas-api/internal/config"
 	"github.com/Smithh15/citas-api/internal/db/sqlc"
+	"github.com/Smithh15/citas-api/internal/mailer"
 	"github.com/Smithh15/citas-api/internal/tasks"
 )
 
@@ -31,7 +32,7 @@ func main() {
 	)
 
 	mux := asynq.NewServeMux()
-	handler := tasks.NewHandler(queries, cfg.PendingHoldMinutes)
+	handler := tasks.NewHandler(queries, &mailer.LogMailer{}, cfg.PendingHoldMinutes)
 	mux.HandleFunc(tasks.TypeReleaseExpiredAppointments, handler.HandleReleaseExpired)
 	mux.HandleFunc(tasks.TypeSendAppointmentReminder, handler.HandleSendReminder)
 

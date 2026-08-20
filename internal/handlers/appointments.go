@@ -1,20 +1,25 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/Smithh15/citas-api/internal/db/sqlc"
+	"github.com/Smithh15/citas-api/internal/tasks"
 )
 
 type AppointmentHandler struct {
 	Queries              sqlc.Querier
+	AsynqClient          *asynq.Client
 	MinCancellationHours int
 }
 
@@ -122,7 +127,32 @@ func (h *AppointmentHandler) Create(c *gin.Context) {
 		return
 	}
 
+	if h.AsynqClient != nil {
+		h.scheduleReminder(appt)
+	}
+
 	c.JSON(http.StatusCreated, appt)
+}
+
+// scheduleReminder encola el recordatorio 24h antes de la cita. Si falla, no
+// propagamos el error al paciente: la cita ya se creó correctamente, y fallar
+// el request entero por un recordatorio sería peor experiencia que perderlo.
+func (h *AppointmentHandler) scheduleReminder(appt sqlc.Appointment) {
+	reminderAt := appt.SlotStart.Time.Add(-24 * time.Hour)
+	if !reminderAt.After(time.Now()) {
+		return
+	}
+
+	payload, err := json.Marshal(tasks.SendReminderPayload{AppointmentID: appt.ID.String()})
+	if err != nil {
+		log.Printf("could not marshal reminder payload for %s: %v", appt.ID.String(), err)
+		return
+	}
+
+	task := asynq.NewTask(tasks.TypeSendAppointmentReminder, payload)
+	if _, err := h.AsynqClient.Enqueue(task, asynq.ProcessAt(reminderAt)); err != nil {
+		log.Printf("could not schedule reminder for %s: %v", appt.ID.String(), err)
+	}
 }
 
 // Cancel godoc

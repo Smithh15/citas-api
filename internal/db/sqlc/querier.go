@@ -18,6 +18,7 @@ type Querier interface {
 	CreateDoctorProfile(ctx context.Context, userID pgtype.UUID) (DoctorProfile, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	GetAppointmentByID(ctx context.Context, id pgtype.UUID) (Appointment, error)
+	GetAppointmentForReminder(ctx context.Context, id pgtype.UUID) (GetAppointmentForReminderRow, error)
 	GetAvailableSlots(ctx context.Context, arg GetAvailableSlotsParams) ([]pgtype.Timestamptz, error)
 	GetDoctorProfileByUserID(ctx context.Context, userID pgtype.UUID) (DoctorProfile, error)
 	GetDoctorSpecialties(ctx context.Context, doctorID pgtype.UUID) ([]Specialty, error)
